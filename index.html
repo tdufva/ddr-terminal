@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VEB Central Control Terminal v7.0</title>
+    <title>VEB Central Control Terminal v8.0</title>
     <style>
         /* --- MINISTRY CSS STYLES --- */
         :root {
@@ -58,9 +58,9 @@
             grid-column: span 2; padding: 10px; border-width: 5px;
             position: relative; overflow: hidden; background: #000;
             display: flex; justify-content: center; align-items: center;
-            min-height: 400px;
+            min-height: 400px; 
         }
-
+        
         #monitor-img {
             max-width: 100%; max-height: 600px; display: block;
             border: 2px solid var(--border);
@@ -149,7 +149,7 @@
         }
         input:checked + .slider-toggle { background-color: var(--highlight); }
         input:checked + .slider-toggle:before { transform: translateX(26px); }
-
+        
         .ddr-toggle:before { background-color: var(--ddr-red); }
         input:checked + .ddr-toggle { background-color: var(--ddr-red); }
 
@@ -161,19 +161,26 @@
         }
         .power-btn:active { box-shadow: 0px 0px 0px var(--border); transform: translate(4px, 4px); }
         .power-btn.active { background: var(--highlight); color: var(--text); }
-
+        
         .entropy-status {
-            font-size: 0.75rem; font-weight: bold; text-transform: uppercase;
+            font-size: 0.75rem; font-weight: bold; text-transform: uppercase; 
             margin-top: 5px; color: var(--ddr-red); text-align: right;
             opacity: 0; transition: opacity 0.3s;
+        }
+
+        .memory-group {
+            display: flex; gap: 15px; margin-bottom: 20px;
+        }
+        .memory-group .power-btn {
+            margin-bottom: 0; font-size: 0.8rem; padding: 10px;
         }
     </style>
 </head>
 <body>
 
     <header class="terminal-header">
-        <p class="form-id">FORM NO. 84-H // STOCHASTIC MODULATION MODULE</p>
-        <h1 class="typing">Central Command Interface v7.0</h1>
+        <p class="form-id">FORM NO. 84-I // STOCHASTIC MODULATION & MEMORY</p>
+        <h1 class="typing">Central Command Interface v8.0</h1>
     </header>
 
     <main class="grid">
@@ -202,7 +209,7 @@
             <h3 style="margin-top:20px;">Telemetry</h3>
             <canvas id="visualizer-canvas"></canvas>
         </section>
-
+        
         <section class="card ddr-chamber-card">
             <h2 style="color: var(--ddr-red);">State Acoustics</h2>
             <div class="switch-group" style="margin-top: 15px;">
@@ -211,7 +218,7 @@
                     <input type="checkbox" id="ddr-switch"><span class="slider-toggle ddr-toggle"></span>
                 </label>
             </div>
-
+            
             <div class="switch-group" style="margin-top: 20px; border-top: 2px solid var(--border); padding-top: 15px;">
                 <label class="switch-label">
                     <span style="color: var(--ddr-red);">Stochastic Entropy (Auto-Modulate)</span>
@@ -228,7 +235,16 @@
 
         <section class="card synth-panel" style="grid-column: span 2;">
             <h2>VEB Poly-Synthesizer</h2>
+            
             <div class="synth-controls">
+                <div class="slider-group">
+                    <label>Syttymisaika (Attack)</label>
+                    <input type="range" id="attack-slider" min="0.01" max="1" value="0.05" step="0.01">
+                </div>
+                <div class="slider-group">
+                    <label>Sammumisaika (Release)</label>
+                    <input type="range" id="release-slider" min="0.01" max="2" value="0.4" step="0.01">
+                </div>
                 <div class="slider-group">
                     <label>Osc 2 Detune (Color/Thickness)</label>
                     <input type="range" id="detune-slider" min="0" max="20" value="7" step="0.1">
@@ -250,13 +266,25 @@
 
         <section class="card seq-panel" style="grid-column: span 2;">
             <h2>Rhythmic Automaton Typ 8</h2>
+            
+            <div class="memory-group">
+                <button id="save-btn" class="power-btn" style="background: var(--bg); color: var(--text);">Rei'itä Kortti (Save Pattern)</button>
+                <button id="load-btn" class="power-btn" style="background: var(--bg); color: var(--text);">Lue Kortti (Load Pattern)</button>
+            </div>
+
             <button id="seq-play-btn" class="power-btn">Engage Transport</button>
 
             <div class="seq-grid" id="seq-grid"></div>
 
-            <div class="slider-group" style="margin-top: 15px;">
-                <label>Master Tempo (BPM)</label>
-                <input type="range" id="tempo-slider" min="60" max="240" value="110">
+            <div class="synth-controls" style="margin-top: 15px; grid-template-columns: 1fr 1fr; border: none; padding: 0; background: none;">
+                <div class="slider-group">
+                    <label>Master Tempo (BPM)</label>
+                    <input type="range" id="tempo-slider" min="60" max="240" value="110">
+                </div>
+                <div class="slider-group">
+                    <label>Valtiollinen Rytmihäiriö (Swing %)</label>
+                    <input type="range" id="swing-slider" min="0" max="75" value="0">
+                </div>
             </div>
         </section>
 
@@ -271,7 +299,7 @@
                 const xFloor = Math.floor(x); const t = x - xFloor;
                 const tSmooth = t * t * (3 - 2 * t);
                 const xMin = xFloor % this.MAX_VERTICES; const xMax = (xMin + 1) % this.MAX_VERTICES;
-                return this.r[xMin] * (1 - tSmooth) + this.r[xMax] * tSmooth; // Lerp
+                return this.r[xMin] * (1 - tSmooth) + this.r[xMax] * tSmooth; 
             }
         };
         OrganicNoise.init();
@@ -283,6 +311,8 @@
         const filterCutoffSlider = document.getElementById('filter-cutoff');
         const lfoPitchSlider = document.getElementById('lfo-pitch-slider');
         const lfoFilterSlider = document.getElementById('lfo-filter-slider');
+        const attackSlider = document.getElementById('attack-slider');
+        const releaseSlider = document.getElementById('release-slider');
 
         function updateVisuals() {
             const hueVal = -5 + (parseFloat(detuneSlider.value) * 9);
@@ -315,7 +345,7 @@
             }
             requestAnimationFrame(visualGlitchLoop);
         }
-        visualGlitchLoop();
+        visualGlitchLoop(); 
 
         // --- PHOTO MONITOR ARCHIVE ---
         const berlinPhotos = [
@@ -350,7 +380,7 @@
             osc.connect(gain); gain.connect(sysCtx.destination);
             osc.start(); osc.stop(sysCtx.currentTime + 0.05);
         }
-
+        
         function makeDistortionCurve(amount) {
             let k = amount, n_samples = 44100, curve = new Float32Array(n_samples), deg = Math.PI / 180, i = 0, x;
             for ( ; i < n_samples; ++i ) { x = i * 2 / n_samples - 1; curve[i] = ( 3 + k ) * x * 20 * deg / ( Math.PI + k * Math.abs(x) ); }
@@ -388,7 +418,7 @@
 
             noiseSource.connect(noiseFilter); noiseFilter.connect(noiseGain); noiseGain.connect(masterGain);
             noiseSource.start();
-
+            
             drawVisualizer(); updateVisuals();
         }
 
@@ -399,125 +429,136 @@
         function playSynthVoice(pitch, isKick = false) {
             const osc1 = sysCtx.createOscillator(); const osc2 = sysCtx.createOscillator();
             const vcf = sysCtx.createBiquadFilter(); const vca = sysCtx.createGain();
-
-            osc1.connect(vcf); osc2.connect(vcf); vcf.connect(vca);
+            
+            osc1.connect(vcf); osc2.connect(vcf); vcf.connect(vca); 
             vca.connect(masterGain); vca.connect(reverbNode); vca.connect(ddrMix);
 
             if (isKick) {
+                // Kick drum ignores ADSR to stay punchy
                 osc1.type = 'sine'; osc2.type = 'sine';
                 osc1.frequency.setValueAtTime(150, sysCtx.currentTime); osc1.frequency.exponentialRampToValueAtTime(0.01, sysCtx.currentTime + 0.4);
                 vcf.type = 'lowpass'; vcf.frequency.value = 500;
                 vca.gain.setValueAtTime(1, sysCtx.currentTime); vca.gain.exponentialRampToValueAtTime(0.01, sysCtx.currentTime + 0.4);
+                osc1.start(); osc2.start();
+                osc1.stop(sysCtx.currentTime + 0.5); osc2.stop(sysCtx.currentTime + 0.5);
             } else {
+                // Synth voices use ADSR Envelopes
+                const attack = parseFloat(attackSlider.value);
+                const release = parseFloat(releaseSlider.value);
+
                 osc1.type = 'sawtooth'; osc2.type = 'square';
                 osc1.frequency.value = pitch; osc2.frequency.value = pitch + parseFloat(detuneSlider.value);
                 vcf.type = 'lowpass'; vcf.frequency.setValueAtTime(filterCutoffSlider.value, sysCtx.currentTime);
-
+                
                 if (lfoPitchSlider.value > 0) {
                     const lfoPitch = sysCtx.createOscillator(); lfoPitch.type = 'sine'; lfoPitch.frequency.value = lfoPitchSlider.value;
                     const lfoPitchGain = sysCtx.createGain(); lfoPitchGain.gain.value = 10;
                     lfoPitch.connect(lfoPitchGain); lfoPitchGain.connect(osc1.frequency); lfoPitchGain.connect(osc2.frequency);
-                    lfoPitch.start(); lfoPitch.stop(sysCtx.currentTime + 0.5);
+                    lfoPitch.start(); lfoPitch.stop(sysCtx.currentTime + attack + release + 0.5);
                 }
                 if (lfoFilterSlider.value > 0) {
                     const lfoFilter = sysCtx.createOscillator(); lfoFilter.type = 'sine'; lfoFilter.frequency.value = lfoFilterSlider.value;
                     const lfoFilterGain = sysCtx.createGain(); lfoFilterGain.gain.value = 800;
                     lfoFilter.connect(lfoFilterGain); lfoFilterGain.connect(vcf.frequency);
-                    lfoFilter.start(); lfoFilter.stop(sysCtx.currentTime + 0.5);
+                    lfoFilter.start(); lfoFilter.stop(sysCtx.currentTime + attack + release + 0.5);
                 }
+                
+                // ADSR Shaping
                 vca.gain.setValueAtTime(0, sysCtx.currentTime);
-                vca.gain.linearRampToValueAtTime(0.4, sysCtx.currentTime + 0.05);
-                vca.gain.exponentialRampToValueAtTime(0.01, sysCtx.currentTime + 0.4);
+                vca.gain.linearRampToValueAtTime(0.4, sysCtx.currentTime + attack);
+                vca.gain.setTargetAtTime(0.001, sysCtx.currentTime + attack, release / 3);
+                
+                osc1.start(); osc2.start();
+                osc1.stop(sysCtx.currentTime + attack + release + 0.5); 
+                osc2.stop(sysCtx.currentTime + attack + release + 0.5);
             }
-            osc1.start(); osc2.start();
-            osc1.stop(sysCtx.currentTime + 0.5); osc2.stop(sysCtx.currentTime + 0.5);
         }
 
         // --- STOCHASTIC ENTROPY LOGIC ---
         const entropySwitch = document.getElementById('entropy-switch');
         const entropyStatus = document.getElementById('entropy-status');
-        let isEntropyActive = false;
-        let entropyLoops = 0;
-        let entropyTime = 0;
-
-        // Strict C Minor Pentatonic Scale to keep random melodies musical
+        let isEntropyActive = false; let entropyLoops = 0; let entropyTime = 0;
+        
         const cMinPentatonic = [261.63, 311.13, 349.23, 392.00, 466.16, 523.25, 622.25, 698.46, 783.99];
-        let rowPitches = [523.25, 392.00, 311.13, 0]; // 0 is the kick drum
+        let rowPitches = [523.25, 392.00, 311.13, 0];
 
         entropySwitch.addEventListener('change', (e) => {
-            playMechanicalClick();
-            isEntropyActive = e.target.checked;
+            playMechanicalClick(); isEntropyActive = e.target.checked;
             if (isEntropyActive) {
-                entropyStatus.style.opacity = 1;
-                entropyStatus.innerText = `Deterioration Loop: ${entropyLoops}`;
+                entropyStatus.style.opacity = 1; entropyStatus.innerText = `Deterioration Loop: ${entropyLoops}`;
             } else {
-                entropyStatus.style.opacity = 0;
-                entropyLoops = 0; // Reset on off
+                entropyStatus.style.opacity = 0; entropyLoops = 0;
             }
         });
 
         function applyEntropy() {
             if (!isEntropyActive) return;
-            entropyLoops++;
-            entropyTime += 0.5;
+            entropyLoops++; entropyTime += 0.5;
             entropyStatus.innerText = `Deterioration Loop: ${entropyLoops}`;
 
-            // Calculate Intensity (0.0 to 1.0)
-            let intensity = 0;
-            if (entropyLoops <= 10) {
-                intensity = (entropyLoops / 10) * 0.3; // Gentle drift for first 10 loops
-            } else {
-                intensity = Math.min(1.0, 0.3 + ((entropyLoops - 10) * 0.1)); // Aggressive drift after
-            }
+            let intensity = entropyLoops <= 10 ? (entropyLoops / 10) * 0.3 : Math.min(1.0, 0.3 + ((entropyLoops - 10) * 0.1));
 
-            // Motorize the sliders based on Organic Noise + Intensity
             if (intensity > 0.05) {
-                // Detune (Wanders between 0 and 20)
                 let n1 = OrganicNoise.get(entropyTime) * 20;
                 detuneSlider.value = parseFloat(detuneSlider.value) * (1 - intensity) + n1 * intensity;
-                detuneSlider.dispatchEvent(new Event('input')); // Triggers color change
+                detuneSlider.dispatchEvent(new Event('input')); 
 
-                // Filter Cutoff (Wanders between 100 and 3000)
                 let n2 = 100 + (OrganicNoise.get(entropyTime + 100) * 2900);
                 filterCutoffSlider.value = parseFloat(filterCutoffSlider.value) * (1 - intensity) + n2 * intensity;
 
-                // Violent Glitch and Dust (Only activates at higher intensities)
                 if (intensity > 0.4) {
                     let n3 = OrganicNoise.get(entropyTime + 200) * 15;
                     let n4 = OrganicNoise.get(entropyTime + 300) * 10;
-
-                    // The harder the intensity, the more it applies the LFOs
-                    let applicationMod = (intensity - 0.4) * 1.6; // Scale up
-
+                    let applicationMod = (intensity - 0.4) * 1.6; 
+                    
                     lfoPitchSlider.value = parseFloat(lfoPitchSlider.value) * 0.8 + (n3 * applicationMod) * 0.2;
                     lfoFilterSlider.value = parseFloat(lfoFilterSlider.value) * 0.8 + (n4 * applicationMod) * 0.2;
-
-                    lfoPitchSlider.dispatchEvent(new Event('input'));
-                    lfoFilterSlider.dispatchEvent(new Event('input'));
+                    
+                    lfoPitchSlider.dispatchEvent(new Event('input')); lfoFilterSlider.dispatchEvent(new Event('input'));
                 }
             }
 
-            // Melodic wandering (Only the top 3 rows)
             if (Math.random() < intensity * 0.6) {
                 let randomRow = Math.floor(Math.random() * 3);
                 let currentScaleIdx = cMinPentatonic.indexOf(rowPitches[randomRow]);
-                if (currentScaleIdx === -1) currentScaleIdx = 4;
-
-                // Step melody up or down one note in the pentatonic scale
+                if (currentScaleIdx === -1) currentScaleIdx = 4; 
                 let step = Math.random() > 0.5 ? 1 : -1;
                 let newIdx = Math.max(0, Math.min(cMinPentatonic.length - 1, currentScaleIdx + step));
-
                 rowPitches[randomRow] = cMinPentatonic[newIdx];
             }
         }
 
-        // --- SEQUENCER AUTOMATON ---
+        // --- SEQUENCER AUTOMATON & SWING LOGIC ---
         const seqGrid = document.getElementById('seq-grid');
         const seqPlayBtn = document.getElementById('seq-play-btn');
         const tempoSlider = document.getElementById('tempo-slider');
+        const swingSlider = document.getElementById('swing-slider');
 
         let isSeqPlaying = false; let currentStep = 0; let seqInterval;
         const rows = 4; const cols = 8;
+
+        // Pattern Save & Load Logic (Reikäkorttimuisti)
+        document.getElementById('save-btn').addEventListener('click', () => {
+            playMechanicalClick();
+            let pattern = [];
+            document.querySelectorAll('.seq-btn').forEach(btn => pattern.push(btn.classList.contains('active')));
+            localStorage.setItem('vebPattern', JSON.stringify(pattern));
+            
+            const btn = document.getElementById('save-btn');
+            btn.innerText = "Tallennettu!"; btn.style.background = "var(--highlight)";
+            setTimeout(() => { btn.innerText = "Rei'itä Kortti (Save Pattern)"; btn.style.background = "var(--bg)"; }, 1000);
+        });
+
+        document.getElementById('load-btn').addEventListener('click', () => {
+            playMechanicalClick();
+            let saved = JSON.parse(localStorage.getItem('vebPattern'));
+            if (saved) {
+                document.querySelectorAll('.seq-btn').forEach((btn, i) => {
+                    if (saved[i]) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                });
+            }
+        });
 
         for (let r = 0; r < rows; r++) {
             let rowDiv = document.createElement('div'); rowDiv.className = 'seq-row';
@@ -529,23 +570,37 @@
             seqGrid.appendChild(rowDiv);
         }
 
-        function stepSequence() {
+        function scheduleNextStep() {
+            if (!isSeqPlaying) return;
+
+            // Suorita nykyinen askel
             document.querySelectorAll(`.col-${currentStep}`).forEach(btn => btn.classList.remove('current'));
             currentStep = (currentStep + 1) % cols;
 
-            // When a new loop begins (Step 0)
             if (currentStep === 0) {
-                updateMonitor();
-                applyEntropy(); // Trigger the degradation algorithm
+                updateMonitor(); applyEntropy();
             }
 
             const activeBtns = document.querySelectorAll(`.col-${currentStep}`);
             activeBtns.forEach((btn, rowIdx) => {
                 btn.classList.add('current');
-                if (btn.classList.contains('active')) {
-                    playSynthVoice(rowPitches[rowIdx], rowIdx === 3);
-                }
+                if (btn.classList.contains('active')) playSynthVoice(rowPitches[rowIdx], rowIdx === 3);
             });
+
+            // Laske seuraavan askeleen viive Valtiollisen Rytmihäiriön (Swing) mukaan
+            let tempoMs = (60 / tempoSlider.value) * 1000 / 2; // Normaali kahdeksasosa
+            let swingAmount = swingSlider.value / 100;
+            let delay = tempoMs;
+
+            if (currentStep % 2 === 0) {
+                // Seuraava on "off-beat", viivästytetään sitä
+                delay = tempoMs + (tempoMs * swingAmount);
+            } else {
+                // Seuraava on "on-beat", nopeutetaan kiinni
+                delay = tempoMs - (tempoMs * swingAmount);
+            }
+
+            seqInterval = setTimeout(scheduleNextStep, delay);
         }
 
         seqPlayBtn.addEventListener('click', () => {
@@ -553,20 +608,11 @@
             if (sysCtx.state === 'suspended') sysCtx.resume();
             if (!isSeqPlaying) {
                 isSeqPlaying = true; seqPlayBtn.classList.add('active'); seqPlayBtn.innerText = "Automaton: RUNNING";
-                let tempoMs = (60 / tempoSlider.value) * 1000 / 2;
-                seqInterval = setInterval(stepSequence, tempoMs);
+                scheduleNextStep(); // Start dynamic loop
             } else {
                 isSeqPlaying = false; seqPlayBtn.classList.remove('active'); seqPlayBtn.innerText = "Engage Transport";
-                clearInterval(seqInterval);
+                clearTimeout(seqInterval); // Stop loop
                 document.querySelectorAll('.seq-btn').forEach(btn => btn.classList.remove('current'));
-            }
-        });
-
-        tempoSlider.addEventListener('input', (e) => {
-            if (isSeqPlaying) {
-                clearInterval(seqInterval);
-                let tempoMs = (60 / e.target.value) * 1000 / 2;
-                seqInterval = setInterval(stepSequence, tempoMs);
             }
         });
 
@@ -576,8 +622,8 @@
             if (e.target.checked) document.body.setAttribute('data-theme', 'whimsy');
             else document.body.removeAttribute('data-theme');
         });
-
-        const canvas = document.getElementById('visualizer-canvas');
+        
+        const canvas = document.getElementById('visualizer-canvas'); 
         const canvasCtx = canvas.getContext('2d');
         canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
 
