@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VEB Central Control Terminal v7.0</title>
+    <style>
+        /* --- MINISTRY CSS STYLES --- */
+        :root {
+            --bg: #D6D2C4;
+            --panel: #F4F1EA;
+            --accent: #3D5A5B;
+            --text: #222;
+            --border: #000;
+            --highlight: #E1AD01;
+            --seq-active: #D14D28;
+            --ddr-red: #8B0000;
+            --detune-hue: -5deg;
+            --dust-intensity: 0.15;
+        }
+
+        [data-theme="whimsy"] {
+            --bg: #FAD0C9;
+            --panel: #FFF5CC;
+            --accent: #D14D28;
+            --text: #4A2C2A;
+            --border: #4A2C2A;
+            --highlight: #75B9BE;
+            --seq-active: #3D5A5B;
+            --ddr-red: #D14D28;
+        }
+
+        body {
+            background-color: var(--bg); color: var(--text);
+            font-family: 'Futura', 'Courier New', sans-serif;
+            margin: 0; padding: 40px;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            cursor: crosshair;
+        }
+
+        .grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 30px; max-width: 1000px; margin: 0 auto;
+        }
+
+        .card {
+            background: var(--panel); border: 3px solid var(--border);
+            padding: 20px; box-shadow: 6px 6px 0px var(--accent);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .ddr-chamber-card {
+            border: 4px solid var(--ddr-red); background: #e8dede;
+        }
+
+        /* --- VISUAL MONITOR STYLES --- */
+        .monitor-card {
+            grid-column: span 2; padding: 10px; border-width: 5px;
+            position: relative; overflow: hidden; background: #000;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 400px;
+        }
+
+        #monitor-img {
+            max-width: 100%; max-height: 600px; display: block;
+            border: 2px solid var(--border);
+            filter: contrast(130%) saturate(140%) brightness(105%) sepia(30%) hue-rotate(var(--detune-hue)) drop-shadow(4px 4px 0 var(--border));
+            transition: opacity 0.2s ease, filter 0.1s;
+            position: relative; z-index: 1;
+        }
+
+        .glitch-layer {
+            position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
+            background-size: contain; background-repeat: no-repeat; background-position: center;
+            pointer-events: none; z-index: 5; opacity: 0;
+            border: 2px solid transparent;
+        }
+
+        .dust-layer {
+            position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5OSA5OSI+PHBhdGggZD0iTTAgMEg5OVY5OUgwWiIgZmlsbD0id2hpdGUiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PC9wYXRoPjwvc3ZnPg==');
+            background-repeat: repeat; animation: noise 0.1s steps(4) infinite;
+            pointer-events: none; z-index: 10;
+            opacity: var(--dust-intensity);
+        }
+
+        @keyframes noise {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-5px, 5px); }
+            50% { transform: translate(5px, -5px); }
+            75% { transform: translate(-5px, -5px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        /* --- STANDARD TERMINAL UI --- */
+        .terminal-header {
+            max-width: 1000px; margin: 0 auto 40px auto;
+            border: 4px double var(--border); padding: 30px;
+            text-align: center; background: var(--panel);
+            box-shadow: 6px 6px 0px var(--accent);
+        }
+
+        h1, h2, h3 { text-transform: uppercase; margin-top: 0; letter-spacing: 2px;}
+        h3 { font-size: 1rem; border-bottom: 2px solid var(--border); padding-bottom: 5px; }
+        .form-id { font-size: 0.7rem; opacity: 0.7; margin-bottom: 10px; text-transform: uppercase;}
+
+        .synth-controls {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
+            border: 2px solid var(--border); padding: 15px; background: rgba(0,0,0,0.05);
+        }
+        .slider-group { display: flex; flex-direction: column; }
+        .slider-group label { font-size: 0.75rem; text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 20px; width: 12px;
+            background: var(--accent); border: 2px solid var(--border);
+            cursor: ew-resize; margin-top: -8px;
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: var(--border); }
+
+        #visualizer-canvas { width: 100%; height: 100px; background-color: var(--panel); border: 2px solid var(--border); }
+
+        .seq-grid {
+            display: flex; flex-direction: column; gap: 10px;
+            background: rgba(0,0,0,0.05); border: 2px solid var(--border); padding: 15px; margin-bottom: 15px;
+        }
+        .seq-row { display: flex; gap: 10px; justify-content: space-between; }
+        .seq-btn {
+            width: 100%; height: 35px; border: 2px solid var(--border);
+            background: var(--bg); cursor: pointer; transition: 0.1s;
+        }
+        .seq-btn.active { background: var(--seq-active); }
+        .seq-btn.current { border-color: var(--highlight); transform: scale(1.05); box-shadow: 0 0 8px var(--highlight); }
+
+        .switch-group { margin-bottom: 20px; border-bottom: 1px dashed var(--border); padding-bottom: 10px;}
+        .switch-label {
+            display: flex; justify-content: space-between; align-items: center;
+            font-weight: bold; text-transform: uppercase; font-size: 0.9rem; cursor: pointer;
+        }
+        .switch-label input { display: none; }
+        .slider-toggle {
+            width: 50px; height: 24px; background-color: var(--bg);
+            border: 2px solid var(--border); position: relative; transition: 0.3s;
+        }
+        .slider-toggle:before {
+            content: ""; position: absolute; width: 16px; height: 16px;
+            left: 2px; bottom: 2px; background-color: var(--accent);
+            border: 2px solid var(--border); transition: 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+        input:checked + .slider-toggle { background-color: var(--highlight); }
+        input:checked + .slider-toggle:before { transform: translateX(26px); }
+
+        .ddr-toggle:before { background-color: var(--ddr-red); }
+        input:checked + .ddr-toggle { background-color: var(--ddr-red); }
+
+        .power-btn {
+            width: 100%; padding: 15px; background: var(--accent); color: var(--panel);
+            border: 3px solid var(--border); font-family: inherit; font-weight: bold;
+            text-transform: uppercase; cursor: pointer; margin-bottom: 20px;
+            box-shadow: 4px 4px 0px var(--border); transition: 0.1s;
+        }
+        .power-btn:active { box-shadow: 0px 0px 0px var(--border); transform: translate(4px, 4px); }
+        .power-btn.active { background: var(--highlight); color: var(--text); }
+
+        .entropy-status {
+            font-size: 0.75rem; font-weight: bold; text-transform: uppercase;
+            margin-top: 5px; color: var(--ddr-red); text-align: right;
+            opacity: 0; transition: opacity 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="terminal-header">
+        <p class="form-id">FORM NO. 84-H // STOCHASTIC MODULATION MODULE</p>
+        <h1 class="typing">Central Command Interface v7.0</h1>
+    </header>
+
+    <main class="grid">
+
+        <section class="card monitor-card" id="monitor-container">
+            <img id="monitor-img" src="Berlin - 11.jpeg" alt="Berlin Photo Archive">
+            <div class="glitch-layer" id="glitch-layer" style="background-image: url('Berlin - 11.jpeg');"></div>
+            <div class="dust-layer"></div>
+        </section>
+
+        <section class="card control-panel">
+            <h2>Environment</h2>
+            <div class="switch-group">
+                <label class="switch-label">
+                    <span>Aesthetic Shift (Color)</span>
+                    <input type="checkbox" id="theme-switch"><span class="slider-toggle"></span>
+                </label>
+            </div>
+
+            <h3 style="margin-top:20px;">Bureaucratic Ambiance</h3>
+            <div class="slider-group">
+                <label>HVAC / Tape Hiss Volume</label>
+                <input type="range" id="noise-slider" min="0" max="0.5" value="0" step="0.01">
+            </div>
+
+            <h3 style="margin-top:20px;">Telemetry</h3>
+            <canvas id="visualizer-canvas"></canvas>
+        </section>
+
+        <section class="card ddr-chamber-card">
+            <h2 style="color: var(--ddr-red);">State Acoustics</h2>
+            <div class="switch-group" style="margin-top: 15px;">
+                <label class="switch-label">
+                    <span style="color: var(--ddr-red);">Engage Concrete Echo</span>
+                    <input type="checkbox" id="ddr-switch"><span class="slider-toggle ddr-toggle"></span>
+                </label>
+            </div>
+
+            <div class="switch-group" style="margin-top: 20px; border-top: 2px solid var(--border); padding-top: 15px;">
+                <label class="switch-label">
+                    <span style="color: var(--ddr-red);">Stochastic Entropy (Auto-Modulate)</span>
+                    <input type="checkbox" id="entropy-switch"><span class="slider-toggle ddr-toggle"></span>
+                </label>
+                <div class="entropy-status" id="entropy-status">Deterioration Loop: 0</div>
+            </div>
+
+            <div class="slider-group" style="margin-top: 20px;">
+                <label>Standard Reverb (Room Size)</label>
+                <input type="range" id="reverb-slider" min="0" max="0.8" value="0.2" step="0.05">
+            </div>
+        </section>
+
+        <section class="card synth-panel" style="grid-column: span 2;">
+            <h2>VEB Poly-Synthesizer</h2>
+            <div class="synth-controls">
+                <div class="slider-group">
+                    <label>Osc 2 Detune (Color/Thickness)</label>
+                    <input type="range" id="detune-slider" min="0" max="20" value="7" step="0.1">
+                </div>
+                <div class="slider-group">
+                    <label>Filter Cutoff (Brightness)</label>
+                    <input type="range" id="filter-cutoff" min="100" max="3000" value="1200" step="1">
+                </div>
+                <div class="slider-group">
+                    <label>LFO 1: Pitch Wobble / Visual Glitch</label>
+                    <input type="range" id="lfo-pitch-slider" min="0" max="15" value="0" step="0.1">
+                </div>
+                <div class="slider-group">
+                    <label>LFO 2: Filter Sweep / Archival Dust</label>
+                    <input type="range" id="lfo-filter-slider" min="0" max="10" value="0" step="0.1">
+                </div>
+            </div>
+        </section>
+
+        <section class="card seq-panel" style="grid-column: span 2;">
+            <h2>Rhythmic Automaton Typ 8</h2>
+            <button id="seq-play-btn" class="power-btn">Engage Transport</button>
+
+            <div class="seq-grid" id="seq-grid"></div>
+
+            <div class="slider-group" style="margin-top: 15px;">
+                <label>Master Tempo (BPM)</label>
+                <input type="range" id="tempo-slider" min="60" max="240" value="110">
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- 1D NOISE ENGINE (ORGANIC RANDOMNESS) ---
+        const OrganicNoise = {
+            MAX_VERTICES: 256, r: [],
+            init: function() { for (let i = 0; i < this.MAX_VERTICES; i++) this.r.push(Math.random()); },
+            get: function(x) {
+                const xFloor = Math.floor(x); const t = x - xFloor;
+                const tSmooth = t * t * (3 - 2 * t);
+                const xMin = xFloor % this.MAX_VERTICES; const xMax = (xMin + 1) % this.MAX_VERTICES;
+                return this.r[xMin] * (1 - tSmooth) + this.r[xMax] * tSmooth; // Lerp
+            }
+        };
+        OrganicNoise.init();
+
+        // --- AUDIO-VISUAL LINKING LOGIC ---
+        const rootVars = document.documentElement.style;
+        const glitchLayer = document.getElementById('glitch-layer');
+        const detuneSlider = document.getElementById('detune-slider');
+        const filterCutoffSlider = document.getElementById('filter-cutoff');
+        const lfoPitchSlider = document.getElementById('lfo-pitch-slider');
+        const lfoFilterSlider = document.getElementById('lfo-filter-slider');
+
+        function updateVisuals() {
+            const hueVal = -5 + (parseFloat(detuneSlider.value) * 9);
+            rootVars.setProperty('--detune-hue', `${hueVal}deg`);
+            const dustVal = 0.15 + (parseFloat(lfoFilterSlider.value) * 0.07);
+            rootVars.setProperty('--dust-intensity', dustVal);
+        }
+
+        detuneSlider.addEventListener('input', updateVisuals);
+        lfoFilterSlider.addEventListener('input', updateVisuals);
+
+        function visualGlitchLoop() {
+            const lfo1Val = parseFloat(lfoPitchSlider.value);
+            if (lfo1Val > 0) {
+                if (Math.random() < (lfo1Val / 30)) {
+                    glitchLayer.style.opacity = 0.9;
+                    const clipT = Math.random() * 80;
+                    const clipB = 100 - clipT - (Math.random() * 15 + 2);
+                    glitchLayer.style.clipPath = `inset(${clipT}% 0 ${clipB}% 0)`;
+                    const shiftX = (Math.random() - 0.5) * lfo1Val * 5;
+                    glitchLayer.style.transform = `translateX(${shiftX}px)`;
+                    const corruptColors = [90, 180, 270];
+                    const randColor = corruptColors[Math.floor(Math.random() * corruptColors.length)];
+                    glitchLayer.style.filter = `hue-rotate(${randColor}deg) contrast(200%) saturate(200%)`;
+                } else {
+                    glitchLayer.style.opacity = 0;
+                }
+            } else {
+                glitchLayer.style.opacity = 0;
+            }
+            requestAnimationFrame(visualGlitchLoop);
+        }
+        visualGlitchLoop();
+
+        // --- PHOTO MONITOR ARCHIVE ---
+        const berlinPhotos = [
+            'Berlin - 11.jpeg', 'Berlin - 12.jpeg', 'Berlin - 13.jpeg', 'Berlin - 14.jpeg', 'Berlin - 15.jpeg',
+            'Berlin - 16.jpeg', 'Berlin - 17.jpeg', 'Berlin - 18.jpeg', 'Berlin - 19.jpeg', 'Berlin - 20.jpeg'
+        ];
+        let photoIndex = 0;
+        const monitorImg = document.getElementById('monitor-img');
+
+        function updateMonitor() {
+            photoIndex = (photoIndex + 1) % berlinPhotos.length;
+            const newPhoto = berlinPhotos[photoIndex];
+            monitorImg.style.opacity = 0;
+            setTimeout(() => {
+                monitorImg.src = newPhoto;
+                glitchLayer.style.backgroundImage = `url('${newPhoto}')`;
+                monitorImg.style.opacity = 1;
+            }, 100);
+        }
+
+        // --- CORE AUDIO & ROUTING ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let sysCtx;
+        let masterGain, analyser, reverbNode, ddrDistortion, ddrDelay, ddrMix, noiseGain;
+
+        function playMechanicalClick() {
+            if (!sysCtx) return;
+            const osc = sysCtx.createOscillator(); const gain = sysCtx.createGain();
+            osc.type = 'square'; osc.frequency.setValueAtTime(150, sysCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, sysCtx.currentTime + 0.05);
+            gain.gain.setValueAtTime(0.3, sysCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, sysCtx.currentTime + 0.05);
+            osc.connect(gain); gain.connect(sysCtx.destination);
+            osc.start(); osc.stop(sysCtx.currentTime + 0.05);
+        }
+
+        function makeDistortionCurve(amount) {
+            let k = amount, n_samples = 44100, curve = new Float32Array(n_samples), deg = Math.PI / 180, i = 0, x;
+            for ( ; i < n_samples; ++i ) { x = i * 2 / n_samples - 1; curve[i] = ( 3 + k ) * x * 20 * deg / ( Math.PI + k * Math.abs(x) ); }
+            return curve;
+        }
+
+        function initAudio() {
+            if (sysCtx) return;
+            sysCtx = new AudioContext();
+            masterGain = sysCtx.createGain(); masterGain.gain.value = 0.4;
+            analyser = sysCtx.createAnalyser(); analyser.fftSize = 1024;
+            masterGain.connect(analyser); analyser.connect(sysCtx.destination);
+
+            reverbNode = sysCtx.createDelay(); reverbNode.delayTime.value = 0.2;
+            let revFeedback = sysCtx.createGain(); revFeedback.gain.value = 0.2;
+            reverbNode.connect(revFeedback); revFeedback.connect(reverbNode);
+            reverbNode.connect(masterGain);
+
+            ddrMix = sysCtx.createGain(); ddrMix.gain.value = 0;
+            ddrDistortion = sysCtx.createWaveShaper(); ddrDistortion.curve = makeDistortionCurve(100); ddrDistortion.oversample = '4x';
+            ddrDelay = sysCtx.createDelay(); ddrDelay.delayTime.value = 0.08;
+            let ddrFeedback = sysCtx.createGain(); ddrFeedback.gain.value = 0.6;
+            ddrMix.connect(ddrDistortion); ddrDistortion.connect(ddrDelay);
+            ddrDelay.connect(ddrFeedback); ddrFeedback.connect(ddrDelay);
+            ddrDelay.connect(masterGain); ddrDistortion.connect(masterGain);
+
+            let bufferSize = sysCtx.sampleRate * 2;
+            let noiseBuffer = sysCtx.createBuffer(1, bufferSize, sysCtx.sampleRate);
+            let output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+
+            let noiseSource = sysCtx.createBufferSource(); noiseSource.buffer = noiseBuffer; noiseSource.loop = true;
+            let noiseFilter = sysCtx.createBiquadFilter(); noiseFilter.type = 'bandpass'; noiseFilter.frequency.value = 800;
+            noiseGain = sysCtx.createGain(); noiseGain.gain.value = 0;
+
+            noiseSource.connect(noiseFilter); noiseFilter.connect(noiseGain); noiseGain.connect(masterGain);
+            noiseSource.start();
+
+            drawVisualizer(); updateVisuals();
+        }
+
+        document.getElementById('noise-slider').addEventListener('input', (e) => { if(noiseGain) noiseGain.gain.value = e.target.value; });
+        document.getElementById('reverb-slider').addEventListener('input', (e) => { if(sysCtx) reverbNode.delayTime.value = 0.1 + (e.target.value * 0.4); });
+        document.getElementById('ddr-switch').addEventListener('change', (e) => { playMechanicalClick(); if(ddrMix) ddrMix.gain.value = e.target.checked ? 0.8 : 0; });
+
+        function playSynthVoice(pitch, isKick = false) {
+            const osc1 = sysCtx.createOscillator(); const osc2 = sysCtx.createOscillator();
+            const vcf = sysCtx.createBiquadFilter(); const vca = sysCtx.createGain();
+
+            osc1.connect(vcf); osc2.connect(vcf); vcf.connect(vca);
+            vca.connect(masterGain); vca.connect(reverbNode); vca.connect(ddrMix);
+
+            if (isKick) {
+                osc1.type = 'sine'; osc2.type = 'sine';
+                osc1.frequency.setValueAtTime(150, sysCtx.currentTime); osc1.frequency.exponentialRampToValueAtTime(0.01, sysCtx.currentTime + 0.4);
+                vcf.type = 'lowpass'; vcf.frequency.value = 500;
+                vca.gain.setValueAtTime(1, sysCtx.currentTime); vca.gain.exponentialRampToValueAtTime(0.01, sysCtx.currentTime + 0.4);
+            } else {
+                osc1.type = 'sawtooth'; osc2.type = 'square';
+                osc1.frequency.value = pitch; osc2.frequency.value = pitch + parseFloat(detuneSlider.value);
+                vcf.type = 'lowpass'; vcf.frequency.setValueAtTime(filterCutoffSlider.value, sysCtx.currentTime);
+
+                if (lfoPitchSlider.value > 0) {
+                    const lfoPitch = sysCtx.createOscillator(); lfoPitch.type = 'sine'; lfoPitch.frequency.value = lfoPitchSlider.value;
+                    const lfoPitchGain = sysCtx.createGain(); lfoPitchGain.gain.value = 10;
+                    lfoPitch.connect(lfoPitchGain); lfoPitchGain.connect(osc1.frequency); lfoPitchGain.connect(osc2.frequency);
+                    lfoPitch.start(); lfoPitch.stop(sysCtx.currentTime + 0.5);
+                }
+                if (lfoFilterSlider.value > 0) {
+                    const lfoFilter = sysCtx.createOscillator(); lfoFilter.type = 'sine'; lfoFilter.frequency.value = lfoFilterSlider.value;
+                    const lfoFilterGain = sysCtx.createGain(); lfoFilterGain.gain.value = 800;
+                    lfoFilter.connect(lfoFilterGain); lfoFilterGain.connect(vcf.frequency);
+                    lfoFilter.start(); lfoFilter.stop(sysCtx.currentTime + 0.5);
+                }
+                vca.gain.setValueAtTime(0, sysCtx.currentTime);
+                vca.gain.linearRampToValueAtTime(0.4, sysCtx.currentTime + 0.05);
+                vca.gain.exponentialRampToValueAtTime(0.01, sysCtx.currentTime + 0.4);
+            }
+            osc1.start(); osc2.start();
+            osc1.stop(sysCtx.currentTime + 0.5); osc2.stop(sysCtx.currentTime + 0.5);
+        }
+
+        // --- STOCHASTIC ENTROPY LOGIC ---
+        const entropySwitch = document.getElementById('entropy-switch');
+        const entropyStatus = document.getElementById('entropy-status');
+        let isEntropyActive = false;
+        let entropyLoops = 0;
+        let entropyTime = 0;
+
+        // Strict C Minor Pentatonic Scale to keep random melodies musical
+        const cMinPentatonic = [261.63, 311.13, 349.23, 392.00, 466.16, 523.25, 622.25, 698.46, 783.99];
+        let rowPitches = [523.25, 392.00, 311.13, 0]; // 0 is the kick drum
+
+        entropySwitch.addEventListener('change', (e) => {
+            playMechanicalClick();
+            isEntropyActive = e.target.checked;
+            if (isEntropyActive) {
+                entropyStatus.style.opacity = 1;
+                entropyStatus.innerText = `Deterioration Loop: ${entropyLoops}`;
+            } else {
+                entropyStatus.style.opacity = 0;
+                entropyLoops = 0; // Reset on off
+            }
+        });
+
+        function applyEntropy() {
+            if (!isEntropyActive) return;
+            entropyLoops++;
+            entropyTime += 0.5;
+            entropyStatus.innerText = `Deterioration Loop: ${entropyLoops}`;
+
+            // Calculate Intensity (0.0 to 1.0)
+            let intensity = 0;
+            if (entropyLoops <= 10) {
+                intensity = (entropyLoops / 10) * 0.3; // Gentle drift for first 10 loops
+            } else {
+                intensity = Math.min(1.0, 0.3 + ((entropyLoops - 10) * 0.1)); // Aggressive drift after
+            }
+
+            // Motorize the sliders based on Organic Noise + Intensity
+            if (intensity > 0.05) {
+                // Detune (Wanders between 0 and 20)
+                let n1 = OrganicNoise.get(entropyTime) * 20;
+                detuneSlider.value = parseFloat(detuneSlider.value) * (1 - intensity) + n1 * intensity;
+                detuneSlider.dispatchEvent(new Event('input')); // Triggers color change
+
+                // Filter Cutoff (Wanders between 100 and 3000)
+                let n2 = 100 + (OrganicNoise.get(entropyTime + 100) * 2900);
+                filterCutoffSlider.value = parseFloat(filterCutoffSlider.value) * (1 - intensity) + n2 * intensity;
+
+                // Violent Glitch and Dust (Only activates at higher intensities)
+                if (intensity > 0.4) {
+                    let n3 = OrganicNoise.get(entropyTime + 200) * 15;
+                    let n4 = OrganicNoise.get(entropyTime + 300) * 10;
+
+                    // The harder the intensity, the more it applies the LFOs
+                    let applicationMod = (intensity - 0.4) * 1.6; // Scale up
+
+                    lfoPitchSlider.value = parseFloat(lfoPitchSlider.value) * 0.8 + (n3 * applicationMod) * 0.2;
+                    lfoFilterSlider.value = parseFloat(lfoFilterSlider.value) * 0.8 + (n4 * applicationMod) * 0.2;
+
+                    lfoPitchSlider.dispatchEvent(new Event('input'));
+                    lfoFilterSlider.dispatchEvent(new Event('input'));
+                }
+            }
+
+            // Melodic wandering (Only the top 3 rows)
+            if (Math.random() < intensity * 0.6) {
+                let randomRow = Math.floor(Math.random() * 3);
+                let currentScaleIdx = cMinPentatonic.indexOf(rowPitches[randomRow]);
+                if (currentScaleIdx === -1) currentScaleIdx = 4;
+
+                // Step melody up or down one note in the pentatonic scale
+                let step = Math.random() > 0.5 ? 1 : -1;
+                let newIdx = Math.max(0, Math.min(cMinPentatonic.length - 1, currentScaleIdx + step));
+
+                rowPitches[randomRow] = cMinPentatonic[newIdx];
+            }
+        }
+
+        // --- SEQUENCER AUTOMATON ---
+        const seqGrid = document.getElementById('seq-grid');
+        const seqPlayBtn = document.getElementById('seq-play-btn');
+        const tempoSlider = document.getElementById('tempo-slider');
+
+        let isSeqPlaying = false; let currentStep = 0; let seqInterval;
+        const rows = 4; const cols = 8;
+
+        for (let r = 0; r < rows; r++) {
+            let rowDiv = document.createElement('div'); rowDiv.className = 'seq-row';
+            for (let c = 0; c < cols; c++) {
+                let btn = document.createElement('div'); btn.className = `seq-btn row-${r} col-${c}`;
+                btn.addEventListener('click', () => { playMechanicalClick(); btn.classList.toggle('active'); });
+                rowDiv.appendChild(btn);
+            }
+            seqGrid.appendChild(rowDiv);
+        }
+
+        function stepSequence() {
+            document.querySelectorAll(`.col-${currentStep}`).forEach(btn => btn.classList.remove('current'));
+            currentStep = (currentStep + 1) % cols;
+
+            // When a new loop begins (Step 0)
+            if (currentStep === 0) {
+                updateMonitor();
+                applyEntropy(); // Trigger the degradation algorithm
+            }
+
+            const activeBtns = document.querySelectorAll(`.col-${currentStep}`);
+            activeBtns.forEach((btn, rowIdx) => {
+                btn.classList.add('current');
+                if (btn.classList.contains('active')) {
+                    playSynthVoice(rowPitches[rowIdx], rowIdx === 3);
+                }
+            });
+        }
+
+        seqPlayBtn.addEventListener('click', () => {
+            playMechanicalClick(); initAudio();
+            if (sysCtx.state === 'suspended') sysCtx.resume();
+            if (!isSeqPlaying) {
+                isSeqPlaying = true; seqPlayBtn.classList.add('active'); seqPlayBtn.innerText = "Automaton: RUNNING";
+                let tempoMs = (60 / tempoSlider.value) * 1000 / 2;
+                seqInterval = setInterval(stepSequence, tempoMs);
+            } else {
+                isSeqPlaying = false; seqPlayBtn.classList.remove('active'); seqPlayBtn.innerText = "Engage Transport";
+                clearInterval(seqInterval);
+                document.querySelectorAll('.seq-btn').forEach(btn => btn.classList.remove('current'));
+            }
+        });
+
+        tempoSlider.addEventListener('input', (e) => {
+            if (isSeqPlaying) {
+                clearInterval(seqInterval);
+                let tempoMs = (60 / e.target.value) * 1000 / 2;
+                seqInterval = setInterval(stepSequence, tempoMs);
+            }
+        });
+
+        // --- UI EXTRAS & VISUALIZER ---
+        document.getElementById('theme-switch').addEventListener('change', (e) => {
+            playMechanicalClick();
+            if (e.target.checked) document.body.setAttribute('data-theme', 'whimsy');
+            else document.body.removeAttribute('data-theme');
+        });
+
+        const canvas = document.getElementById('visualizer-canvas');
+        const canvasCtx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+            if (!analyser) return;
+            const bufferLength = analyser.frequencyBinCount; const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            const computedStyle = getComputedStyle(document.body);
+            canvasCtx.fillStyle = computedStyle.getPropertyValue('--panel').trim();
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+            canvasCtx.lineWidth = 3; canvasCtx.strokeStyle = computedStyle.getPropertyValue('--accent').trim();
+            canvasCtx.beginPath();
+
+            const sliceWidth = canvas.width * 1.0 / bufferLength; let x = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0; const y = v * canvas.height / 2;
+                if (i === 0) canvasCtx.moveTo(x, y); else canvasCtx.lineTo(x, y);
+                x += sliceWidth;
+            }
+            canvasCtx.lineTo(canvas.width, canvas.height / 2); canvasCtx.stroke();
+        }
+    </script>
+</body>
+</html>
